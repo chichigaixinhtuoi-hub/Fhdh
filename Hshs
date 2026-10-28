@@ -11,16 +11,7 @@ local Window = Rayfield:CreateWindow({
       FolderName = nil,
       FileName = "SansBossRushConfig"
    },
-   KeySystem = false, 
-   KeySettings = {
-      Title = "Key",
-      Subtitle = "Key System",
-      Note = "No key required",
-      FileName = "Key",
-      SaveKey = true,
-      GrabKeyFromSite = false,
-      Key = {""}
-   }
+   KeySystem = false
 })
 
 -- Tạo Tab chính
@@ -36,23 +27,38 @@ local godModeActive = false
 local shiftLockActive = false
 local healthConnection = nil
 
--- ==================== 1. SỬA LẠI NPC COLLAPSE ====================
+-- ==================== 1. TỐI ƯU NPC COLLAPSE ====================
 local function applyCollapse(humanoid)
+	if not humanoid or not humanoid.Parent then return end
 	local character = humanoid.Parent
-	if not character then return end
 	
 	-- Bỏ qua người chơi
 	local player = Players:GetPlayerFromCharacter(character)
 	if not player then
 		humanoid.PlatformStand = activeNPC
-		local hrp = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
+		
+		-- Tìm các bộ phận chính của NPC
+		local hrp = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso")
+		
+		if character:IsA("Model") then
+			for _, part in ipairs(character:GetChildren()) do
+				if part:IsA("BasePart") then
+					-- Ép bỏ Anchored để NPC có thể té ngã vật lý
+					if activeNPC and part.Anchored and part.Name ~= "HumanoidRootPart" then
+						part.Anchored = false
+					end
+				end
+			end
+		end
+		
 		if hrp and activeNPC then
-			hrp.Velocity = Vector3.new(0, -15, 0)
+			hrp.Velocity = Vector3.new(0, -30, 0)
+			hrp.RotVelocity = Vector3.new(math.random(-10, 10), 0, math.random(-10, 10))
 		end
 	end
 end
 
--- Vòng lặp quét NPC liên tục và ổn định hơn
+-- Vòng lặp quét liên tục siêu nhanh (0.05s)
 task.spawn(function()
 	while true do
 		if activeNPC then
@@ -62,7 +68,15 @@ task.spawn(function()
 				end
 			end
 		end
-		task.wait(0.3)
+		task.wait(0.05)
+	end
+end)
+
+-- Lắng nghe NPC mới vừa xuất hiện (Spawn) trong game
+workspace.DescendantAdded:Connect(function(descendant)
+	if activeNPC and descendant:IsA("Humanoid") then
+		task.wait(0.1)
+		applyCollapse(descendant)
 	end
 end)
 
