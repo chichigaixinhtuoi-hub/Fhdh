@@ -1,5 +1,33 @@
+-- Tải Rayfield Library
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+-- Tạo cửa sổ chính
+local Window = Rayfield:CreateWindow({
+   Name = "Sans Boss Rush | Panel",
+   LoadingTitle = "Đang tải giao diện...",
+   LoadingSubtitle = "by AI Assistant",
+   ConfigurationSaving = {
+      Enabled = false,
+      FolderName = nil,
+      FileName = "SansBossRushConfig"
+   },
+   KeySystem = false, 
+   KeySettings = {
+      Title = "Key",
+      Subtitle = "Key System",
+      Note = "No key required",
+      FileName = "Key",
+      SaveKey = true,
+      GrabKeyFromSite = false,
+      Key = {""}
+   }
+})
+
+-- Tạo Tab chính
+local MainTab = Window:CreateTab("Chức Năng", 4483362458)
+
+-- Biến trạng thái
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
@@ -8,106 +36,37 @@ local godModeActive = false
 local shiftLockActive = false
 local healthConnection = nil
 
--- Thống báo trạng thái ra Console
-local function notify(text)
-	print("[Script]: " .. text)
-end
-
--- ==================== 1. NPC COLLAPSE (Phím Y) ====================
+-- ==================== 1. SỬA LẠI NPC COLLAPSE ====================
 local function applyCollapse(humanoid)
 	local character = humanoid.Parent
 	if not character then return end
 	
+	-- Bỏ qua người chơi
 	local player = Players:GetPlayerFromCharacter(character)
 	if not player then
 		humanoid.PlatformStand = activeNPC
 		local hrp = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
 		if hrp and activeNPC then
-			hrp.Velocity = Vector3.new(0, -10, 0)
+			hrp.Velocity = Vector3.new(0, -15, 0)
 		end
 	end
 end
 
-local function toggleNPC()
-	activeNPC = not activeNPC
-	notify("NPC Collapse: " .. (activeNPC and "ON" or "OFF"))
-	if not activeNPC then
-		for _, descendant in pairs(workspace:GetDescendants()) do
-			if descendant:IsA("Humanoid") then
-				local character = descendant.Parent
-				local player = Players:GetPlayerFromCharacter(character)
-				if not player then
-					descendant.PlatformStand = false
-				end
-			end
-		end
-	end
-end
-
+-- Vòng lặp quét NPC liên tục và ổn định hơn
 task.spawn(function()
 	while true do
 		if activeNPC then
-			for _, descendant in pairs(workspace:GetDescendants()) do
+			for _, descendant in ipairs(workspace:GetDescendants()) do
 				if descendant:IsA("Humanoid") then
 					applyCollapse(descendant)
 				end
 			end
 		end
-		task.wait(0.2)
+		task.wait(0.3)
 	end
 end)
 
--- ==================== 2. GOD MODE CHỐNG ĐẨY/KÉO (Phím L) ====================
-local function toggleGodMode()
-	godModeActive = not godModeActive
-	notify("God Mode: " .. (godModeActive and "ON" or "OFF"))
-	
-	local character = LocalPlayer.Character
-	if not character then return end
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	
-	if godModeActive then
-		if humanoid then
-			humanoid.MaxHealth = 9e9
-			humanoid.Health = 9e9
-			
-			healthConnection = humanoid.HealthChanged:Connect(function()
-				if godModeActive and humanoid.Health < humanoid.MaxHealth then
-					humanoid.Health = humanoid.MaxHealth
-				end
-			end)
-		end
-		
-		for _, part in pairs(character:GetDescendants()) do
-			if part:IsA("BasePart") then
-				part.CanTouch = false
-				for _, child in pairs(part:GetChildren()) do
-					if child:IsA("BodyMover") or child:IsA("VectorForce") or child:IsA("LinearVelocity") then
-						child:Destroy()
-					end
-				end
-			end
-		end
-	else
-		if healthConnection then
-			healthConnection:Disconnect()
-			healthConnection = nil
-		end
-		
-		if humanoid then
-			humanoid.MaxHealth = 100
-			humanoid.Health = 100
-		end
-		
-		for _, part in pairs(character:GetDescendants()) do
-			if part:IsA("BasePart") then
-				part.CanTouch = true
-			end
-		end
-	end
-end
-
--- Vòng lặp xóa sạch lực đẩy/kéo lạ liên tục
+-- ==================== 2. GOD MODE CHỐNG ĐẨY/KÉO ====================
 RunService.Stepped:Connect(function()
 	if godModeActive then
 		local character = LocalPlayer.Character
@@ -117,10 +76,10 @@ RunService.Stepped:Connect(function()
 				humanoid.Health = humanoid.MaxHealth
 			end
 			
-			for _, part in pairs(character:GetDescendants()) do
+			for _, part in ipairs(character:GetDescendants()) do
 				if part:IsA("BasePart") then
 					if part.CanTouch then part.CanTouch = false end
-					for _, child in pairs(part:GetChildren()) do
+					for _, child in ipairs(part:GetChildren()) do
 						if child:IsA("BodyMover") or child:IsA("VectorForce") or child:IsA("LinearVelocity") or child:IsA("AlignPosition") then
 							child:Destroy()
 						end
@@ -131,12 +90,7 @@ RunService.Stepped:Connect(function()
 	end
 end)
 
--- ==================== 3. SHIFTLOCK (Phím Left Shift) ====================
-local function toggleShiftLock()
-	shiftLockActive = not shiftLockActive
-	notify("Shiftlock: " .. (shiftLockActive and "ON" or "OFF"))
-end
-
+-- ==================== 3. SHIFTLOCK ====================
 RunService.RenderStepped:Connect(function()
 	if shiftLockActive then
 		local character = LocalPlayer.Character
@@ -162,30 +116,88 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
--- ==================== LẮNG NGHE PHÍM BẤM (PC) ====================
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-	if gameProcessed then return end
-	
-	-- Phím Y: Bật/Tắt NPC Collapse
-	if input.KeyCode == Enum.KeyCode.Y then
-		toggleNPC()
-		
-	-- Phím L: Bật/Tắt God Mode
-	elseif input.KeyCode == Enum.KeyCode.L then
-		toggleGodMode()
-		
-	-- Phím Left Shift: Bật/Tắt Shiftlock
-	elseif input.KeyCode == Enum.KeyCode.LeftShift then
-		toggleShiftLock()
-	end
-end)
+-- ==================== CÁC PHẦN TOGGLE TRÊN RAYFIELD ====================
 
--- Reset trạng thái khi hồi sinh
+MainTab:CreateToggle({
+   Name = "Làm ngã NPC (NPC Collapse)",
+   CurrentValue = false,
+   Flag = "NPCToggle",
+   Callback = function(Value)
+      activeNPC = Value
+      if not activeNPC then
+         -- Dựng dậy toàn bộ NPC khi tắt
+         for _, descendant in ipairs(workspace:GetDescendants()) do
+            if descendant:IsA("Humanoid") then
+               local character = descendant.Parent
+               local player = Players:GetPlayerFromCharacter(character)
+               if not player then
+                  descendant.PlatformStand = false
+               end
+            end
+         end
+      end
+   end,
+})
+
+MainTab:CreateToggle({
+   Name = "Bất Tử (God Mode chống bẫy/đẩy)",
+   CurrentValue = false,
+   Flag = "GodToggle",
+   Callback = function(Value)
+      godModeActive = Value
+      local character = LocalPlayer.Character
+      if not character then return end
+      local humanoid = character:FindFirstChildOfClass("Humanoid")
+      
+      if godModeActive then
+         if humanoid then
+            humanoid.MaxHealth = 9e9
+            humanoid.Health = 9e9
+            healthConnection = humanoid.HealthChanged:Connect(function()
+               if godModeActive and humanoid.Health < humanoid.MaxHealth then
+                  humanoid.Health = humanoid.MaxHealth
+               end
+            end)
+         end
+         for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+               part.CanTouch = false
+            end
+         end
+      else
+         if healthConnection then
+            healthConnection:Disconnect()
+            healthConnection = nil
+         end
+         if humanoid then
+            humanoid.MaxHealth = 100
+            humanoid.Health = 100
+         end
+         for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+               part.CanTouch = true
+            end
+         end
+      end
+   end,
+})
+
+MainTab:CreateToggle({
+   Name = "Shiftlock",
+   CurrentValue = false,
+   Flag = "ShiftLockToggle",
+   Callback = function(Value)
+      shiftLockActive = Value
+   end,
+})
+
+-- Reset lại trạng thái khi nhân vật chết/hồi sinh
 LocalPlayer.CharacterAdded:Connect(function()
-	godModeActive = false
-	shiftLockActive = false
-	if healthConnection then
-		healthConnection:Disconnect()
-		healthConnection = nil
-	end
+   godModeActive = false
+   shiftLockActive = false
+   activeNPC = false
+   if healthConnection then
+      healthConnection:Disconnect()
+      healthConnection = nil
+   end
 end)
